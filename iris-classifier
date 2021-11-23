@@ -1,0 +1,187 @@
+import matplotlib.pyplot as plt
+import math
+import csv
+import numpy as np
+
+error=[] # list holding all the error progressions of the system. used to make error vs. trials plot
+
+# calculates and returns value of sigmoid function given an x
+def sigma(x):
+	return 1/(1+math.exp(-x))
+
+# calculates and returns mean squared error of system
+# given the data vectors, weights and pattern classe
+def mean_squared_error(xpts,ypts,weights,pattern_class):
+	error=0 # holds total error summed
+	for i in range(len(xpts)):
+		xp=(xpts[i]-(ypts[i]-weights[1])/weights[0])/weights[2] # calculates distance of data point to middle of sigmoid
+		error+=(sigma(xp)-pattern_class[i])**2 # error calculation 
+	return 0.5*error
+
+# calculates and returns gradient of each of the weights 
+# given teh data vectors, weights and pattern classe
+def gradient(xpts,ypts,weights,pattern_class):
+	# holds sum of the gradient for particular weight
+	m_gradient=0
+	b_gradient=0
+	s_gradient=0
+	for i in range(len(xpts)):
+		xp=(xpts[i]-(ypts[i]-weights[1])/(weights[0]))/weights[2]	# calculates distance of data point to middle of sigmoid
+		sig=sigma(xp) # calculates data points projection onto sigmoid using xp
+		# computes the gradient for each weight
+		m_gradient+=(sig-pattern_class[i])*sig*(1-sig)*(ypts[i]-weights[1])
+		b_gradient+=(sig-pattern_class[i])*sig*(1-sig)
+		s_gradient+=(sig-pattern_class[i])*sig*(1-sig)*(-1)*xp
+	return [m_gradient/(weights[2]*weights[0]*weights[0]),b_gradient/(weights[2]*weights[0]),s_gradient/weights[2]]
+
+# creats all plots given weights
+def create_plots(weights):
+	global error
+	# lists that hold x,y coordinates of each data class
+	versicolor_x=[]
+	versicolor_y=[]
+	setosa_x=[]
+	setosa_y=[]
+	virginica_x=[]
+	virginica_y=[]
+	boundary_y=[]
+
+	# reads csv file and sorts data into their respective x,y data vector
+	with open('irisdata.csv',newline='') as csvfile:
+		spamreader=csv.reader(csvfile,delimiter=' ',quotechar='|')
+		for row in spamreader:
+			line=row[0].split(',')
+			if line[-1]=='setosa':
+				setosa_x.append(float(line[2]))
+				setosa_y.append(float(line[3]))
+			elif line[-1]=='versicolor':
+				versicolor_x.append(float(line[2]))
+				versicolor_y.append(float(line[3]))
+			elif line[-1]=='virginica':
+				virginica_x.append(float(line[2]))
+				virginica_y.append(float(line[3]))
+
+	# vectors holding x,y coordinates of 2D boundary
+	boundary_x=[]
+	boundary_y=[]
+	i=0
+	# uses y=mx+b to make boundary 
+	while i<=7: 
+		boundary_x.append(i)
+		boundary_y.append(i*weights[0]+weights[1])
+		i+=0.1
+	
+	# checks when slope of 2D boundary is negative to
+	# reverse sort boundary_y. makes graphs not wonky
+	if weights[0]<0:
+		boundary_y.sort(reverse=True)
+	
+	# creates figure to hold 3 plots 
+	fig=plt.figure(figsize=(15, 5))
+	ax=fig.add_subplot(1,3,1,projection='3d')
+	# i use limits on the axes because i think it makes for nicer looking graphs
+	ax.set_xlim3d(0,7)
+	ax.set_ylim3d(0,2.5)
+	ax.set_zlim3d(0,1)
+	
+	# creates and plots sigmoid learning curve
+	y=0
+	# first loop runs through every y coordiante
+	while y<=2.5:
+		x=(y-weights[1])/weights[0] # given y coordinate this finds the x point on the 2D boundary line
+		j=0
+		Z=[] # holds sigma data points for Z dimension
+		X=[]
+		# second loop runs through range of the x-axis boundaries making sigmoid points that span the 
+		# lenth of the boundary perfectly 
+		while j<=7:
+			X.append(j)
+			xp=(j-x)/weights[2]
+			Z.append(sigma(xp))
+			j+=0.1
+		# plots one sigmoid for each y coordiante. this is why we plot an X and Z vector 
+		# paired with y which is just one data point, not a vector
+		ax.scatter(X,y,Z,color='k',marker='.',s=1)
+		y+=0.05
+
+	# calculates mean squared error for each data set and appends it to the global error list
+	versicolor_error=mean_squared_error(versicolor_x,versicolor_y,weights,[0]*len(versicolor_x))
+	virginica_error=mean_squared_error(virginica_x,virginica_y,weights,[1]*len(virginica_x))
+	#setosa_error=mean_squared_error(setosa_x,setosa_y,weights,[0]*len(setosa_x))
+	error.append(versicolor_error+virginica_error)
+
+	# calculates the gradient for each of the data sets. these values are sumed and later returned
+	versicolor_gr=gradient(versicolor_x,versicolor_y,weights,[0]*len(versicolor_x))
+	virginica_gr=gradient(virginica_x,virginica_y,weights,[1]*len(virginica_x))
+	#setosa_gr=gradient(setosa_x,setosa_y,weights,[0]*len(setosa_x))
+
+	# plots the data points and 2D boundary line
+	ax.scatter(versicolor_x,versicolor_y,[0.5]*len(versicolor_x),label='versicolor')
+	ax.scatter(virginica_x,virginica_y,[0.5]*len(virginica_x),label='virginica')
+	#ax.scatter(setosa_x,setosa_y,[0.5]*len(setosa_x),label='setosa')
+	ax.plot(boundary_x,boundary_y,[0.5]*len(boundary_x))
+
+	# sets labels and legend of plots
+	ax.set_xlabel('petal length',fontsize=15)
+	ax.set_ylabel('petal width',fontsize=15)
+	#ax.set_zlabel('y',fontsize=15)
+	plt.legend()
+
+	# this is the start of the second plot which is just a 2D representation of the 
+	# data points and the decision boundary line
+	plt.subplot(1,3,2)
+	plt.scatter(virginica_x,virginica_y)
+	plt.scatter(versicolor_x,versicolor_y)
+	#plt.scatter(setosa_x,setosa_y)
+	plt.plot(boundary_x,boundary_y)
+
+	# sets axes limits and labels
+	plt.xlim(0,7)
+	plt.ylim(0,2.6)
+	plt.xlabel('Petal length',fontsize=15)
+	plt.ylabel('Petal width',fontsize=15)
+
+	# third plot showing the change in error
+	plt.subplot(1,3,3)
+	plt.plot(np.arange(0,len(error),1),error)
+
+	# sets axes limits and labels
+	plt.xlim(0,50)
+	plt.ylim(0,20)
+	plt.xticks(np.arange(0,55,step=5))
+	plt.yticks(np.arange(0,22,step=2))
+	plt.xlabel('Trials',fontsize=15)
+	plt.ylabel('Error',fontsize=15)
+
+	fig.tight_layout() # so the window isn't huge
+	plt.show()
+	
+	return([versicolor_gr[0]+virginica_gr[0],versicolor_gr[1]+virginica_gr[1],versicolor_gr[2]+virginica_gr[2]])
+
+# implements gradient decent to find optimal decision boundary placement	
+def gradient_decent():
+	# weights of the system
+	m=-0.5
+	b=2
+	s=3
+	weights=[m,b,s]
+	i=0
+	# runs 50 times because any more then the scenario is prolly not gonna converge
+	while i<=50:
+		gr=create_plots(weights) # passes weights to makes plots and get the resulting gradients
+		e=0.0008 # step size, subject to change
+		
+		# update the weights
+		weights[0]-=e*gr[0]
+		weights[1]-=e*gr[1]
+		weights[2]-=e*gr[2]
+
+		# stopping criteria
+		# 1. len(error)>10 ensures that the scenario has had some time to play out
+		# 2. error[i]<6 lower boundary of error, most trials ended with error below 6
+		# 3. abs(error[-1]-error[-4])<0.1 ensures that last couple error points havent changed much
+		if len(error)>10 and error[i]<6 and abs(error[-1]-error[-4])<0.1:
+			i=50 # terminates loop otherwise will end at 50 iterations
+		i+=1
+
+gradient_decent()
